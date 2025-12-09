@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 关键：设置视口，禁止用户缩放，确保移动端显示比例正确 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 智能配色 Pro @Kaimana</title>
+    <style>
+        /* ================= 全局变量与重置 ================= */
+        :root {
+            --bg-color: #f4f6f8;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+            --card-radius: 16px;
+            --bar-radius: 12px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg-color); 
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* ================= 顶部控制栏 (响应式) ================= */
+        .top-bar {
+            background: white; 
+            padding: 20px; 
+            border-radius: var(--bar-radius);
+            display: flex; 
+            gap: 15px; 
+            align-items: center; 
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 30px; 
+            flex-wrap: wrap; /* 允许换行 */
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        h3 { 
+            margin: 0; 
+            font-size: 18px; 
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls-wrapper {
+            display: flex;
+            gap: 15px;
+            flex: 1;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+
+        label { 
+            font-size: 14px; 
+            font-weight: 500; 
+            color: var(--text-sub); 
+            white-space: nowrap;
+        }
+        
+        /* 输入框样式优化 */
+        select, input[type="number"] {
+            padding: 10px 12px; 
+            border: 1px solid #e5e7eb; 
+            border-radius: 8px; 
+            font-size: 14px;
+            background-color: #f9fafb; 
+            outline: none; 
+            transition: all 0.2s;
+            height: 42px; /* 增大触控区域 */
+        }
+        select:focus, input:focus { 
+            border-color: var(--primary-color); 
+            background: #fff; 
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        
+        #themeSelect { min-width: 140px; }
+
+        /* 生成按钮 */
+        button.btn-generate { 
+            padding: 0 24px; 
+            height: 42px;
+            background: var(--primary-color); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 14px;
+            transition: all 0.2s; 
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(59, 130, 246, 0.3);
+        }
+        button.btn-generate:active { transform: scale(0.98); }
+
+        /* ================= 移动端适配 (Media Queries) ================= */
+        @media (max-width: 768px) {
+            body { padding: 15px; } /* 减少外边距 */
+
+            .top-bar {
+                flex-direction: column; /* 垂直堆叠 */
+                align-items: stretch;
+                padding: 15px;
+                gap: 15px;
+            }
+
+            .controls-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            select, input[type="number"], .control-group { width: 100%; }
+            #themeSelect { width: 100%; }
+
+            button.btn-generate {
+                width: 100%; /* 按钮全宽 */
+                margin-top: 5px;
+                font-size: 16px; /* 字体加大 */
+            }
+        }
+
+        /* ================= 画廊网格布局 ================= */
+        .gallery {
+            display: grid;
+            /* 智能响应式网格：最小宽度160px，自动填充 */
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 针对小屏手机优化为双列紧凑布局，或者单列 */
+        @media (max-width: 480px) {
+            .gallery {
+                grid-template-columns: repeat(2, 1fr); /* 强制两列 */
+                gap: 12px;
+            }
+        }
+
+        /* ================= 卡片设计 ================= */
+        .poster-card {
+            background: #fff;
+            aspect-ratio: 3.5/4;
+            border-radius: var(--card-radius);
+            padding: 12px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        
+        /* 仅在支持 hover 的设备上启用悬浮上移 */
+        @media (hover: hover) {
+            .poster-card:hover { 
+                transform: translateY(-6px); 
+                box-shadow: var(--shadow-lg); 
+            }
+        }
+
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 10px; padding: 0 2px;
+        }
+        .card-title {
+            font-size: 11px; font-weight: 700; color: #9ca3af; 
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        
+        /* 色块容器 */
+        .palette-box {
+            flex: 1; 
+            display: flex; 
+            gap: 0; 
+            border-radius: 12px; /* 稍微加大圆角 */
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); /* 加深一点内描边 */
+            margin-bottom: 8px; /* 与底部按钮拉开一点距离 */
+        }
+        
+        .swatch-col {
+            flex: 1; display: flex; flex-direction: column; align-items: center; position: relative;
+        }
+        
+        .color-strip {
+            width: 100%; height: 100%; transition: width 0.2s;
+        }
+
+        /* 颜色代码 (PC端悬浮显示，移动端点击复制时提示) */
+        .hex-code {
+            position: absolute; bottom: 10px;
+            font-size: 10px; color: #333; font-family: 'SF Mono', 'Monaco', monospace;
+            background: rgba(255,255,255,0.9); 
+            padding: 3px 6px; border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            opacity: 0; transform: translateY(5px);
+            transition: all 0.2s; pointer-events: none;
+            white-space: nowrap;
+        }
+        
+        @media (hover: hover) {
+            .swatch-col:hover .color-strip { filter: brightness(0.95); }
+            .swatch-col:hover .hex-code { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 底部操作 */
+        .card-footer {
+            margin-top: 12px; 
+        }
+        .btn-copy-css {
+            width: 100%;
+            font-size: 11px; 
+            color: var(--text-main); 
+            background: #f3f4f6; 
+            border: 1px solid transparent;
+            padding: 8px 0; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .btn-copy-css:active { background: #e5e7eb; transform: scale(0.98); }
+        @media (hover: hover) {
+            .btn-copy-css:hover { background: #e5e7eb; }
+        }
+
+        /* ================= Toast 提示框 ================= */
+        #toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: rgba(31, 41, 55, 0.9);
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 12px 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%) translateY(20px);
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            backdrop-filter: blur(4px);
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ================= 底部页脚 ================= */
+        .footer {
+            text-align: center;
+            padding: 50px 20px 30px; /* 上边距大一点，形成视觉呼吸感 */
+            margin-top: 40px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05); /* 极细分割线 */
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .footer .brand {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            letter-spacing: 0.5px;
+        }
+
+        .footer .contact {
+            font-size: 13px;
+            color: var(--text-sub);
+            opacity: 0.8;
+        }
+
+        .footer .contact a {
+            color: var(--text-sub);
+            text-decoration: none;
+            transition: color 0.2s;
+            border-bottom: 1px dashed transparent;
+        }
+
+        /* 鼠标悬停效果 */
+        .footer .contact a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h3>🎨 配色 Pro</h3>
+    
+    <div class="controls-wrapper">
+        <div class="control-group" style="flex: 2;">
+            <label>风格主题</label>
+            <select id="themeSelect">
+                <option value="pastel">马卡龙 (Pastel)</option>
+                <option value="vibrant">多巴胺 (Vibrant)</option>
+                <option value="morandi">莫兰迪 (Morandi)</option>
+                <option value="monochrome">极简单色 (Mono)</option>
+                <option value="dark">赛博朋克 (Dark)</option>
+                <option value="forest">森林物语 (Forest)</option>
+                <option value="ocean">深海幽蓝 (Ocean)</option>
+                <option value="luxury">黑金奢华 (Luxury)</option>
+            </select>
+        </div>
+
+        <div class="control-group" style="flex: 1;">
+            <label>数量</label>
+            <input type="number" id="countInput" value="16" min="1" max="40">
+        </div>
+
+        <button class="btn-generate" onclick="generateBatch()">🚀 立即生成</button>
+    </div>
+</div>
+
+<!-- 结果展示区 -->
+<div class="gallery" id="gallery">
+    <!-- JS 插入内容 -->
+</div>
+
+<!-- 底部品牌栏 -->
+<div class="footer">
+    <div class="brand">Author:@Kaimana</div>
+    <div class="contact">
+        Email(商务合作): <a href="mailto:bdera4@163.com">bdera4@163.com</a>
+    </div>
+</div>
+
+<!-- Toast 提示容器 -->
+<div id="toast">复制成功</div>
+
+<script>
+    // ==========================================
+    // 1. 核心数学工具 (保持不变)
+       // 辅助工具：更自然的随机
+    function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    
+    // 辅助工具：生成和谐色相
+    // 商业级配色秘诀：在改变明度的同时，微调色相（Hue Shift），让颜色更通透
+    function shiftHue(h, degree) { return (h + degree + 360) % 360; }
+    function hslToHex(h, s, l) {
+        l /= 100;
+        const a = s * Math.min(l, 1 - l) / 100;
+        const f = n => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+    }
+
+    // ==========================================
+    // 2. 配色生成引擎 (保持不变)
+    // ==========================================
+    function generateGradientColors(count, options) {
+        const { 
+            baseHue = rand(0, 360), hueSpan = 60, sRange = [60, 85], lRange = [30, 80],
+            hueDirection = Math.random() > 0.5 ? 1 : -1
+        } = options;
+        let hslColors = [];
+        for (let i = 0; i < count; i++) {
+            const progress = i / (count - 1);
+            const h = (baseHue + (progress * hueSpan * hueDirection) + 360) % 360;
+            const s = rand(sRange[0], sRange[1]);
+            const lStart = lRange[0], lEnd = lRange[1];
+            let l = lStart + (progress * (lEnd - lStart)) + rand(-5, 5); 
+            hslColors.push({h, s, l});
+        }
+        if (Math.random() > 0.5) hslColors.reverse();
+        return hslColors.map(c => hslToHex(c.h, c.s, c.l));
+    }
+
+    // 核心生成逻辑
+    function getColorsByTheme(theme) {
+        let hslColors = [];
+
+        // --- 1. 多巴胺 (Vibrant) : 高饱和，强对比，且要有主次 ---
+        if (theme === 'vibrant') {
+            const strategy = pick(['triad', 'complimentary', 'analogous']);
+            const mainHue = rand(0, 360);
+            
+            // 基础高饱和色
+            hslColors.push({ h: mainHue, s: rand(80, 100), l: rand(50, 60) });
+            
+            if (strategy === 'triad') {
+                // 三角撞色
+                hslColors.push({ h: shiftHue(mainHue, 120), s: rand(70, 90), l: rand(55, 75) });
+                hslColors.push({ h: shiftHue(mainHue, 240), s: rand(80, 100), l: rand(45, 65) });
+                hslColors.push({ h: shiftHue(mainHue, rand(30, 60)), s: rand(90, 100), l: rand(80, 95) }); // 亮色点缀
+            } else {
+                // 邻近色/补色混合
+                hslColors.push({ h: shiftHue(mainHue, rand(20, 50)), s: rand(80, 100), l: rand(50, 70) });
+                hslColors.push({ h: shiftHue(mainHue, 180), s: rand(70, 90), l: rand(60, 80) }); // 强对比补色
+                hslColors.push({ h: shiftHue(mainHue, rand(-30, -60)), s: rand(90, 100), l: rand(50, 65) });
+            }
+        }
+        
+        // --- 2. 莫兰迪 (Morandi) : 关键是“蒙层感”，低饱和但不能脏 ---
+        else if (theme === 'morandi') {
+            const baseHue = rand(0, 360);
+            // 莫兰迪色系通常不仅是S低，L也要适中偏高，且色相跨度不大
+            const hueStep = rand(15, 40); 
+            
+            // 生成一组带有微妙色相变化的灰调
+            hslColors.push({ h: baseHue, s: rand(10, 25), l: rand(35, 50) }); // 深灰基调
+            hslColors.push({ h: shiftHue(baseHue, hueStep), s: rand(15, 30), l: rand(55, 65) });
+            hslColors.push({ h: shiftHue(baseHue, hueStep * 2), s: rand(20, 35), l: rand(65, 75) });
+            hslColors.push({ h: shiftHue(baseHue, hueStep * 3 + 180), s: rand(5, 15), l: rand(75, 85) }); // 加入一点对比色倾向的亮灰
+            
+            // 按亮度排序让视觉更舒服
+            hslColors.sort((a, b) => a.l - b.l);
+        }
+
+        // --- 3. 马卡龙 (Pastel) : 清新，高明度，色相要干净 ---
+        else if (theme === 'pastel') {
+            const baseHue = rand(0, 360);
+            // 避免看起来像白色，S不能太低(40-70)，L不能太高(80-92)
+            for(let i=0; i<4; i++) {
+                hslColors.push({
+                    h: shiftHue(baseHue, i * rand(40, 90)), // 大跨度色相
+                    s: rand(45, 75), 
+                    l: rand(83, 93)
+                });
+            }
+        }
+
+        // --- Monochrome: 极简单色 (6种策略增强版) ---
+        else if (theme === 'monochrome') {
+            // 策略池：不再只是线性渐变
+            const strategy = pick(['classic', 'high-contrast', 'faded', 'dark-mode', 'vivid', 'slate', 'sepia']);
+            const baseHue = rand(0, 360);
+
+            if (strategy === 'high-contrast') {
+                // 硬调：极深 + 极亮 (跳过中间灰，视觉冲击力强)
+                hslColors = [
+                    { h: baseHue, s: rand(0, 20), l: rand(5, 10) },     // 近乎黑
+                    { h: baseHue, s: rand(10, 30), l: rand(20, 30) },   // 深灰
+                    { h: baseHue, s: rand(0, 10), l: rand(85, 92) },    // 灰白
+                    { h: baseHue, s: 0, l: rand(95, 100) }              // 纯白
+                ];
+            }
+            else if (strategy === 'faded') {
+                // 褪色：整体偏亮，低饱和 (空气感，像水洗布料)
+                // 这种风格通常用于背景，非常柔和
+                const s = rand(5, 30);
+                hslColors = [
+                    { h: baseHue, s: s, l: rand(60, 70) }, // 中亮
+                    { h: baseHue, s: s, l: rand(72, 80) },
+                    { h: baseHue, s: s, l: rand(82, 90) },
+                    { h: baseHue, s: s/2, l: rand(92, 98) } // 亮白
+                ];
+            }
+            else if (strategy === 'dark-mode') {
+                // 暗黑模式：全暗色 (适合 UI 设计)
+                // 只有细微的明度变化
+                const s = rand(10, 40);
+                hslColors = [
+                    { h: baseHue, s: s, l: rand(5, 10) },   // 背景黑
+                    { h: baseHue, s: s, l: rand(12, 18) },  // 卡片黑
+                    { h: baseHue, s: s, l: rand(20, 30) },  // 边框灰
+                    { h: shiftHue(baseHue, 10), s: s+20, l: rand(40, 55) } // 强调色(稍微亮一点)
+                ];
+            }
+            else if (strategy === 'vivid') {
+                // 强力单色：高饱和度 (Pop Art 风格)
+                // 即使是暗部也带有强烈的色彩，不发灰
+                const s = rand(70, 100);
+                hslColors = [
+                    { h: baseHue, s: s, l: rand(20, 35) }, // 深浓色
+                    { h: baseHue, s: s, l: rand(40, 55) }, // 纯色
+                    { h: baseHue, s: s, l: rand(60, 75) }, // 明亮色
+                    { h: baseHue, s: rand(20, 50), l: rand(85, 95) } // 浅色
+                ];
+            }
+            else if (strategy === 'slate') {
+                // 冷淡灰：锁定蓝/青色相，低饱和 (商务/科技感)
+                const slateHue = rand(190, 230); // 蓝灰范围
+                const s = rand(5, 20);
+                hslColors = [
+                    { h: slateHue, s: s, l: rand(15, 25) },
+                    { h: slateHue, s: s, l: rand(35, 45) },
+                    { h: slateHue, s: s, l: rand(55, 65) },
+                    { h: slateHue, s: s, l: rand(75, 85) }
+                ];
+            }
+            else if (strategy === 'sepia') {
+                // 暖调怀旧：锁定红/橙/黄，模拟老照片
+                const sepiaHue = rand(20, 45); // 棕黄范围
+                const s = rand(20, 40);
+                hslColors = [
+                    { h: sepiaHue, s: s, l: rand(15, 25) }, // 咖啡褐
+                    { h: sepiaHue, s: s, l: rand(35, 50) }, // 泥土
+                    { h: sepiaHue, s: s, l: rand(60, 75) }, // 牛皮纸
+                    { h: sepiaHue, s: s, l: rand(80, 92) }  // 米黄
+                ];
+            }
+            else {
+                // Classic: 经典线性渐变 (保留原有逻辑，作为一种可能性)
+                // 增加色相微调(Hue Shift)让渐变更生动
+                const baseSat = rand(20, 70);
+                for(let i=0; i<4; i++) {
+                    const progress = i / 3;
+                    const hueShift = (progress * 15) * (Math.random() > 0.5 ? 1 : -1); 
+                    hslColors.push({
+                        h: shiftHue(baseHue, hueShift), 
+                        s: Math.max(0, baseSat - (progress * 10)), 
+                        l: 20 + (progress * 70)
+                    });
+                }
+            }
+        }
+
+        // --- 6. 赛博朋克 (Dark) : 重写！增加多样性 ---
+        else if (theme === 'dark') {
+            // 背景不再只是深蓝。可以是深紫、深红、深青
+            const bgHue = rand(0, 360); 
+            // 霓虹色：必须高饱和、高亮度
+            const neonHue1 = shiftHue(bgHue, rand(120, 240)); // 对比色
+            const neonHue2 = shiftHue(bgHue, rand(30, 90));   // 邻近亮色
+            
+            hslColors = [
+                { h: bgHue, s: rand(60, 80), l: rand(5, 12) },     // 极深背景
+                { h: shiftHue(bgHue, 15), s: rand(50, 70), l: rand(20, 30) }, // 次深背景
+                { h: neonHue1, s: rand(90, 100), l: rand(55, 75) }, // 霓虹主色
+                { h: neonHue2, s: rand(80, 100), l: rand(80, 95) }  // 高光点缀
+            ];
+        }
+
+        // --- Forest: 森林物语 (6种策略增强版) ---
+        else if (theme === 'forest') {
+            const strategy = pick(['deep-woods', 'mist', 'autumn', 'nordic', 'enchanted', 'bamboo']);
+
+            if (strategy === 'autumn') {
+                // 金秋：红、橙、黄、褐 (暖色系)
+                const baseH = rand(20, 45);
+                hslColors = [
+                   { h: baseH, s: rand(60, 80), l: rand(15, 30) },      // 深红褐
+                   { h: shiftHue(baseH, 10), s: rand(50, 70), l: rand(40, 55) }, // 焦糖色
+                   { h: shiftHue(baseH, 20), s: rand(60, 80), l: rand(60, 75) }, // 金叶
+                   { h: shiftHue(baseH, 30), s: rand(40, 60), l: rand(85, 95) }  // 秋日暖光
+                ];
+            } 
+            else if (strategy === 'mist') {
+                // 迷雾：低饱和度灰绿 (莫兰迪感)
+                const baseH = rand(130, 170); // 偏青的绿
+                hslColors = [
+                    { h: baseH, s: rand(10, 25), l: rand(20, 35) }, // 远山灰
+                    { h: baseH, s: rand(10, 20), l: rand(45, 60) }, // 雾中树
+                    { h: baseH, s: rand(5, 15), l: rand(70, 80) },  // 浓雾
+                    { h: rand(180, 200), s: rand(10, 30), l: rand(90, 98) } // 冷白光
+                ];
+            }
+            else if (strategy === 'nordic') {
+                // 北欧冷杉：蓝绿色调 (Teal/Blue-Green)
+                const baseH = rand(150, 180);
+                hslColors = [
+                    { h: baseH, s: rand(40, 60), l: rand(10, 20) }, // 冷杉深色
+                    { h: shiftHue(baseH, -10), s: rand(30, 50), l: rand(30, 45) }, // 针叶绿
+                    { h: shiftHue(baseH, 10), s: rand(20, 40), l: rand(60, 80) }, // 雪色
+                    { h: 200, s: rand(10, 30), l: rand(85, 95) }    // 寒冷天空
+                ];
+            }
+            else if (strategy === 'enchanted') {
+                // 魔法秘境：深绿背景 + 紫/粉/亮青点缀
+                const bgH = rand(140, 170);
+                const magicH = pick([280, 320, 180]); // 紫、粉、荧光青
+                hslColors = [
+                    { h: bgH, s: rand(60, 80), l: rand(5, 15) },    // 极深墨绿
+                    { h: shiftHue(bgH, 20), s: rand(50, 70), l: rand(20, 35) }, // 暗绿
+                    { h: magicH, s: rand(60, 90), l: rand(50, 70) }, // 魔法植物 (主色)
+                    { h: magicH, s: rand(80, 100), l: rand(80, 95) } // 发光孢子 (高光)
+                ];
+            }
+            else if (strategy === 'bamboo') {
+                // 竹林：高亮黄绿 (Yellow-Green)
+                const baseH = rand(70, 100);
+                hslColors = [
+                    { h: baseH, s: rand(40, 60), l: rand(25, 40) }, // 老竹
+                    { h: shiftHue(baseH, 10), s: rand(50, 70), l: rand(50, 65) }, // 新竹
+                    { h: shiftHue(baseH, 15), s: rand(60, 80), l: rand(75, 88) }, // 嫩叶
+                    { h: 45, s: rand(20, 40), l: rand(90, 98) }     // 阳光透射
+                ];
+            }
+            else {
+                // Deep Woods: 经典深沉老林
+                const greenBase = rand(100, 140);
+                hslColors = [
+                    { h: greenBase, s: rand(30, 50), l: rand(10, 20) },    // 深郁绿
+                    { h: rand(25, 40), s: rand(20, 40), l: rand(25, 40) }, // 树皮褐 (对比色)
+                    { h: greenBase, s: rand(40, 60), l: rand(40, 60) },    // 苔藓
+                    { h: shiftHue(greenBase, 30), s: rand(50, 70), l: rand(70, 85) }   // 林间亮斑
+                ];
+            }
+        }
+
+        // --- Ocean: 深海幽蓝 (5种策略) ---
+        else if (theme === 'ocean') {
+            const strategy = pick(['classic', 'tropical', 'abyss', 'storm', 'coral', 'glacial']);
+            
+            if (strategy === 'tropical') {
+                // 热带：蓝绿调 + 沙色
+                const baseH = rand(160, 190); // 青绿
+                hslColors = [
+                    { h: baseH, s: rand(60, 80), l: rand(30, 45) }, // 海水绿
+                    { h: shiftHue(baseH, 20), s: rand(50, 70), l: rand(50, 70) }, // 浅透蓝
+                    { h: shiftHue(baseH, 40), s: rand(40, 60), l: rand(80, 90) }, // 浪花
+                    { h: rand(30, 50), s: rand(30, 50), l: rand(85, 95) }  // 沙滩白
+                ];
+            } 
+            else if (strategy === 'abyss') {
+                // 深渊：极黑蓝 + 荧光青
+                const baseH = rand(220, 250);
+                hslColors = [
+                    { h: baseH, s: rand(50, 80), l: rand(2, 8) },   // 深渊黑
+                    { h: shiftHue(baseH, 10), s: rand(40, 60), l: rand(15, 25) }, // 深蓝
+                    { h: shiftHue(baseH, -20), s: rand(30, 50), l: rand(30, 40) }, // 暗流
+                    { h: rand(160, 190), s: 100, l: rand(60, 80) }  // 生物荧光(亮青)
+                ];
+            }
+            else if (strategy === 'storm') {
+                // 风暴：低饱和灰蓝
+                const baseH = rand(200, 230);
+                hslColors = [
+                    { h: baseH, s: rand(10, 30), l: rand(20, 35) }, // 深灰海
+                    { h: shiftHue(baseH, 5), s: rand(5, 25), l: rand(40, 55) }, // 乌云
+                    { h: shiftHue(baseH, 10), s: rand(0, 20), l: rand(60, 75) }, // 灰白浪
+                    { h: rand(190, 210), s: rand(5, 15), l: rand(85, 95) }  // 苍白
+                ];
+            }
+            else if (strategy === 'coral') {
+                // 珊瑚：蓝海 + 粉/橙点缀
+                const baseH = rand(195, 225);
+                const accentH = pick([rand(320, 350), rand(10, 30)]); // 粉或橙
+                hslColors = [
+                    { h: baseH, s: rand(60, 80), l: rand(20, 35) },
+                    { h: shiftHue(baseH, 15), s: rand(50, 70), l: rand(40, 60) },
+                    { h: shiftHue(baseH, 30), s: rand(40, 60), l: rand(70, 85) },
+                    { h: accentH, s: rand(70, 90), l: rand(60, 75) } // 珊瑚色点缀
+                ];
+            }
+            else if (strategy === 'glacial') {
+                // 冰川：高亮，极冷
+                const baseH = rand(180, 210);
+                hslColors = [
+                    { h: baseH, s: rand(40, 60), l: rand(25, 40) }, // 冰底
+                    { h: shiftHue(baseH, 5), s: rand(30, 50), l: rand(60, 75) },
+                    { h: shiftHue(baseH, 10), s: rand(20, 40), l: rand(80, 90) },
+                    { h: shiftHue(baseH, 15), s: rand(10, 30), l: 96 } // 纯冰白
+                ];
+            }
+            else {
+                // Classic 经典渐变
+                const baseH = rand(200, 240);
+                hslColors = [
+                    { h: baseH, s: rand(60, 90), l: rand(10, 20) },
+                    { h: shiftHue(baseH, -15), s: rand(50, 80), l: rand(30, 50) },
+                    { h: shiftHue(baseH, -30), s: rand(40, 70), l: rand(50, 70) },
+                    { h: shiftHue(baseH, -45), s: rand(30, 60), l: rand(75, 90) }
+                ];
+            }
+        }
+
+                // --- Luxury: 黑金奢华 (5种策略) ---
+        else if (theme === 'luxury') {
+            const strategy = pick(['classic', 'platinum', 'royal', 'champagne', 'rose-noir']);
+
+            if (strategy === 'champagne') {
+                // 香槟轻奢：浅色背景！(重要差异点)
+                // 米白/奶油背景 + 深金文字
+                const baseH = rand(35, 50);
+                hslColors = [
+                    { h: baseH, s: rand(20, 40), l: rand(92, 98) }, // 珍珠白
+                    { h: baseH, s: rand(30, 50), l: rand(80, 90) }, // 香槟浅色
+                    { h: baseH, s: rand(40, 60), l: rand(60, 75) }, // 香槟金
+                    { h: baseH, s: rand(50, 70), l: rand(20, 35) }  // 深古铜(文字色)
+                ];
+                // 反转顺序，让深色在最下面（UI显示上）或者保持逻辑
+                // 这里我们保持顺序，UI上显示为浅->深
+            }
+            else if (strategy === 'platinum') {
+                // 铂金/钻石：冷色调黑白
+                const bgH = rand(200, 230);
+                hslColors = [
+                    { h: bgH, s: rand(10, 30), l: rand(5, 12) },    // 冷黑
+                    { h: bgH, s: rand(10, 20), l: rand(20, 30) },   // 炭灰
+                    { h: bgH, s: rand(0, 10), l: rand(60, 80) },    // 银灰
+                    { h: 0, s: 0, l: rand(90, 100) }                // 钻石白亮光
+                ];
+            }
+            else if (strategy === 'royal') {
+                // 皇家丝绒：有色背景 (红/绿/蓝)
+                const hueType = pick([350, 150, 230]); // 红，绿，蓝
+                const bgH = (hueType + rand(-10, 10) + 360) % 360;
+                hslColors = [
+                    { h: bgH, s: rand(50, 80), l: rand(8, 15) },    // 丝绒深底
+                    { h: bgH, s: rand(40, 60), l: rand(20, 30) },   // 丝绒次亮
+                    { h: rand(40, 55), s: rand(60, 90), l: rand(50, 65) }, // 奢华金
+                    { h: rand(40, 55), s: rand(70, 100), l: rand(75, 90) } // 金高光
+                ];
+            }
+            else if (strategy === 'rose-noir') {
+                // 暗夜玫瑰：暖黑 + 玫瑰金
+                const bgH = rand(340, 360);
+                hslColors = [
+                    { h: bgH, s: rand(10, 25), l: rand(5, 10) },     // 暖黑
+                    { h: bgH, s: rand(15, 30), l: rand(15, 25) },    // 暖褐灰
+                    { h: rand(330, 350), s: rand(40, 60), l: rand(60, 75) }, // 玫瑰金
+                    { h: rand(330, 350), s: rand(50, 70), l: rand(80, 92) }  // 粉亮光
+                ];
+            }
+            else {
+                // Classic: 经典纯黑 + 黄金
+                hslColors = [
+                    { h: 0, s: 0, l: 0 },                             // 纯黑
+                    { h: 45, s: rand(10, 30), l: rand(10, 20) },      // 黑金渐变过渡
+                    { h: rand(40, 50), s: rand(70, 100), l: rand(50, 65) }, // 纯金
+                    { h: rand(40, 55), s: rand(80, 100), l: rand(80, 95) }  // 闪光金
+                ];
+            }
+        }
+
+        return hslColors.map(c => hslToHex(c.h, c.s, c.l));
+    }
+    // ==========================================
+    // 3. 界面渲染与交互
+    // ==========================================
+
+    function generateBatch() {
+        const theme = document.getElementById('themeSelect').value;
+        const count = parseInt(document.getElementById('countInput').value) || 16;
+        const gallery = document.getElementById('gallery');
+        
+        gallery.style.opacity = '0';
+        
+        setTimeout(() => {
+            gallery.innerHTML = '';
+            
+            for (let i = 0; i < count; i++) {
+                const colors = getColorsByTheme(theme);
+                // 截取主题名称首字母大写
+                const title = document.querySelector(`#themeSelect option[value="${theme}"]`).text.split(' ')[0];
+                
+                const cardHTML = `
+                    <div class="poster-card" style="animation: fadeIn 0.4s ease forwards ${i * 0.05}s">
+                        <div class="card-header">
+                            <span class="card-title">${title} #${i+1}</span>
+                        </div>
+                        <div class="palette-box">
+                            ${colors.map((c) => `
+                                <div class="swatch-col" onclick="copyToClipboard('${c}', '颜色代码 ${c} 已复制')">
+                                    <div class="color-strip" style="background-color: ${c}"></div>
+                                    <span class="hex-code">${c}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-copy-css" onclick="copyPalette('${colors.join(', ')}')">
+                                复制 CSS 渐变代码
+                            </button>
+                        </div>
+                    </div>
+                `;
+                gallery.innerHTML += cardHTML;
+            }
+            gallery.style.opacity = '1';
+        }, 150);
+    }
+
+    // 显示 Toast 提示
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = "show";
+        
+        // 清除之前的定时器（如果有）
+        if (toast.timeoutId) clearTimeout(toast.timeoutId);
+        
+        toast.timeoutId = setTimeout(function(){ 
+            toast.className = toast.className.replace("show", ""); 
+        }, 2000);
+    }
+
+    // 复制单个颜色
+    function copyToClipboard(text, msg) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast(msg || '已复制');
+        }).catch(err => {
+            // 降级处理
+            const input = document.createElement('textarea');
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            showToast(msg || '已复制');
+        });
+    }
+
+    // 复制整组 CSS
+    function copyPalette(colorsStr) {
+        const css = `background: linear-gradient(135deg, ${colorsStr});`;
+        copyToClipboard(css, '🎨 CSS 渐变代码已复制！');
+    }
+
+    // 1. 禁用右键菜单
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault(); // 阻止默认右键行为
+    });
+
+    // 2. 屏蔽F12、Ctrl+Shift+I、Ctrl+U等快捷键
+    document.addEventListener('keydown', function(e) {
+        // F12键
+        if (e.key === 'F12') {
+            e.preventDefault();
+        }
+        // Ctrl+Shift+I
+        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+            e.preventDefault();
+        }
+        // Ctrl+U（查看页面源代码）
+        if (e.ctrlKey && e.key === 'U') {
+            e.preventDefault();
+        }
+        // Ctrl+Shift+C（元素检查）
+        if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+            e.preventDefault();
+        }
+    });
+    
+    // 初始化
+    window.onload = generateBatch;
+    document.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') generateBatch();
+    });
+
+</script>
+
+<style>
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+</body>
+</html>
